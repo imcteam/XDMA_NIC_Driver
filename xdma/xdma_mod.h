@@ -115,4 +115,15 @@ struct cdev_async_io {
 	int err_cnt;
 };
 
+/**
+ * struct opti_private - OptiNIC driver private data
+ **/
+struct opti_private {
+	struct xdma_pci_dev *xpdev;
+	struct xdma_dev *xdev;
+	struct xdma_engine *engine;
+
+	struct net_device *netdev;
+};
+
 #endif /* ifndef __XDMA_MODULE_H__ */

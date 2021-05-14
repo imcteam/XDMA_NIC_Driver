@@ -23,6 +23,8 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/aer.h>
+#include <linux/etherdevice.h>
+#include <linux/netdevice.h>
 /* include early, to verify it depends only on the headers above */
 #include "libxdma_api.h"
 #include "libxdma.h"
@@ -148,8 +150,44 @@ static struct xdma_pci_dev *xpdev_alloc(struct pci_dev *pdev)
 	return xpdev;
 }
 
+static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
+{
+	int i;
+    // 告诉内核不要传入更多的帧
+    netif_stop_queue(dev);
+    
+    // 打印出数据帧
+    printk("send, length=%d:\n",skb->len);
+    for(i=0;i<skb->len;i++){
+        printk(KERN_CONT "%02x ",skb->data[i]);
+    }
+    printk("\n");
+	
+    // 统计已发送的数据包
+    dev->stats.tx_packets++;
+    // 统计已发送的字节
+    dev->stats.tx_bytes+=skb->len;
+    
+    // 释放数据帧
+    dev_kfree_skb(skb);
+    
+    // 告诉内核可以传入更多帧了
+    netif_wake_queue(dev);
+	return 0;
+}
+
+static const struct net_device_ops opti_netdev_ops = {
+	.ndo_start_xmit = opti_xmit_frame,
+};
+
 static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	/*net_device definition
+	 *created by lcf
+	 */
+	struct net_device *netdev;
+	struct opti_private *priv;
+
 	int rv = 0;
 	struct xdma_pci_dev *xpdev = NULL;
 	struct xdma_dev *xdev;
@@ -219,6 +257,31 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	rv = xpdev_create_interfaces(xpdev);
 	if (rv)
 		goto err_out;
+
+	netdev = alloc_etherdev_mq(sizeof(struct opti_private), 1);
+	if (!netdev) {
+		printk(KERN_INFO"lcf_log:alloc_etherdev_mq failed");
+		goto err_out;
+	}
+	SET_NETDEV_DEV(netdev, &pdev->dev);
+	netdev->netdev_ops = &opti_netdev_ops;
+
+	strlcpy(netdev->name, "opti_net", sizeof(netdev->name));
+
+	memcpy(netdev->dev_addr,"\x01\x02\x03\x04\x05\x06",6);
+
+	priv = netdev_priv(netdev);
+	memset(priv, 0, sizeof(struct opti_private));
+	priv->xdev = xdev;
+	priv->xpdev = xpdev;
+	priv->netdev = netdev;
+	priv->engine = xpdev->sgdma_h2c_cdev[0].engine;
+
+	rv = register_netdev(netdev);
+	if (rv < 0) {
+		printk(KERN_INFO"lcf_log:register_netdev, err = %d", rv);
+		goto err_out;
+	}
 
 	dev_set_drvdata(&pdev->dev, xpdev);
 

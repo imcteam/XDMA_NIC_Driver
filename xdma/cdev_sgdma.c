@@ -353,7 +353,8 @@ static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos, bool write)
 {
 	printk(KERN_INFO"lcf_log:char_sgdma_read_write\n");
-	printk(KERN_INFO"lcf_log:tans_buffer:%s\n",buf);
+	if(write)
+		printk(KERN_INFO"lcf_log:tans_buffer:%s\n",buf);
 	int rv;
 	ssize_t res = 0;
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
