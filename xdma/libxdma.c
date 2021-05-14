@@ -3624,7 +3624,7 @@ ssize_t xdma_xfer_submit_nowait(void *cb_hndl, void *dev_hndl, int channel,
 		transfer_dump(xfer);
 #endif
 
-		rv = eue(engine, xfer);
+		rv = transfer_queue(engine, xfer);
 		if (rv < 0) {
 			pr_info("unable to submit %s, %d.\n", engine->name, rv);
 			goto unmap_sgl;
