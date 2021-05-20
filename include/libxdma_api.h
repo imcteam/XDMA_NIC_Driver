@@ -140,7 +140,8 @@ ssize_t xdma_xfer_submit_nowait(void *cb_hndl, void *dev_hndl, int channel, bool
 ssize_t xdma_xfer_completion(void *cb_hndl, void *dev_hndl, int channel, bool write, u64 ep_addr,
 			struct sg_table *sgt, bool dma_mapped, int timeout_ms);
 
-			
+//lcf add api
+ssize_t xdma_xfer_submit_net(void *dev_hndl,void *net_req);		
 
 /////////////////////missing API////////////////////
 

@@ -172,13 +172,13 @@ static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
     // 统计已发送的字节
     dev->stats.tx_bytes+=skb->len;
 
-	char sbuf[skb->len+1];
-	for(i=0;i<skb->len;i++){
-		sbuf[i]=skb->data[i];
-	}
-	sbuf[skb->len]='\0';
+	// char sbuf[skb->len+1];
+	// for(i=0;i<skb->len;i++){
+	// 	sbuf[i]=skb->data[i];
+	// }
+	// sbuf[skb->len]='\0';
 
-    char_sgdma_read_write_net(dev, sbuf, skb->len, pos, 1);
+    char_sgdma_read_write_net(dev, skb, pos, 1);
 	
     // 释放数据帧
     dev_kfree_skb(skb);

@@ -27,6 +27,8 @@
 #include <linux/wait.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
+#include <linux/etherdevice.h>
+#include <linux/netdevice.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 #include <linux/uio.h>
 #endif
@@ -410,54 +412,140 @@ static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
  *  write net frame
  *  created by lcf
  **/
-ssize_t char_sgdma_read_write_net(struct net_device *dev, const char __user *buf,
-		size_t count, loff_t *pos, bool write)
+ssize_t char_sgdma_read_write_net(struct net_device *dev, struct sk_buff *skb, loff_t *pos, bool write)
 {
 	struct opti_private *priv = netdev_priv(dev);
 	int rv;
 	ssize_t res = 0;
-	
+
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
 	struct xdma_io_cb cb;
-
+	struct xdma_request_cb *req;
+	struct xdma_transfer *xfer;
+	enum dma_data_direction dir = write ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	
 	xdev = priv->xdev;
-	engine = priv->engine;
+	engine = &xdev->engine_h2c[0];
 
-	unsigned int pages_nr = (((unsigned long)buf + count + PAGE_SIZE - 1) -
-				 ((unsigned long)buf & PAGE_MASK))
-				>> PAGE_SHIFT;
+	if (!engine) {
+		//pr_err("dma engine NULL\n");
+		printk(KERN_INFO"lcf_log:dma engine NULL\n");
+		return -EINVAL;
+	}
+	xdev = engine->xdev;
+	if (xdma_device_flag_check(xdev, XDEV_FLAG_OFFLINE)) {
+		//pr_info("xdev 0x%p, offline.\n", xdev);
+		printk(KERN_INFO"xdev 0x%p, offline.\n", xdev);
+		return -EBUSY;
+	}
+
+	if (engine->dir != dir) {
+		// pr_info("0x%p, %s, %d, W %d, 0x%x/0x%x mismatch.\n", engine,
+		// 	engine->name, channel, write, engine->dir, dir);
+		printk(KERN_INFO"0x%p, %s, %d, W %d, 0x%x/0x%x mismatch.\n", engine,
+			engine->name, engine->channel, write, engine->dir, dir);
+		return -EINVAL;
+	}
+
+	uint64_t paddr = pci_map_single(xdev->pdev, (void *)skb->data, skb->len,
+				     PCI_DMA_TODEVICE);
+	if (!paddr) {
+			//pr_info("map sgl failed, sgt 0x%p.\n", sgt);
+			printk(KERN_INFO"pci_map_single failed.\n");
+			return -EIO;
+	}
+	// unsigned int pages_nr = (((unsigned long)buf + count + PAGE_SIZE - 1) -
+	// 			 ((unsigned long)buf & PAGE_MASK))
+	// 			>> PAGE_SHIFT;
 
 	printk(KERN_INFO"lcf_log:char_sgdma_read_write_net\n");
-	printk(KERN_INFO"lcf_log:tans_buffer:%s channel:%d count:%ld\npages_nr:%d buf:%p\n",
-			buf,engine->channel,count,pages_nr,buf);
+	printk(KERN_INFO"lcf_log:tans_buffer:%s count:%d\n buf:%p\n",
+			skb->data,skb->len,skb->data);
+	printk(KERN_INFO"lcf_log:paddr:%lld\n",paddr);
 
+	req = xdma_request_alloc_net(1);
+	if (!req)
+		goto unmap_sgl;
 	
+	req->sgt = NULL;
+	req->ep_addr = 0;
+	req->total_len = skb->len;
+	req->sdesc[0].addr = paddr;
+	req->sdesc[0].len = skb->len;
+	req->sw_desc_cnt = 1;
 
-	// rv = check_transfer_align(engine, buf, count, *pos, 1);
-	// if (rv) {
-	// 	pr_info("Invalid transfer alignment detected\n");
-	// 	return rv;
-	// }
+	xdma_xfer_submit_net(xdev ,req);
 
-	// memset(&cb, 0, sizeof(struct xdma_io_cb));
-	// cb.buf = (char __user *)buf;
-	// cb.len = count;
-	// cb.ep_addr = (u64)*pos;
-	// cb.write = write;
-	// rv = char_sgdma_map_user_buf_to_sgl(&cb, write);
-	// if (rv < 0)
-	// 	return rv;
+// 	mutex_lock(&engine->desc_lock);
+// 	rv = transfer_init(engine, req, &req->tfer[0]);
+// 	if (rv < 0) {
+// 			mutex_unlock(&engine->desc_lock);
+// 			goto unmap_sgl;
+// 	}
+// 	xfer = &req->tfer[0];
+// 	xfer->flags = XFER_FLAG_NEED_UNMAP;
 
-	// res = xdma_xfer_submit(xdev, engine->channel, write, *pos, &cb.sgt,
-	// 			0, h2c_timeout * 1000 );
+// 	rv = transfer_queue(engine, xfer);
+// 	if (rv < 0) {
+// 			mutex_unlock(&engine->desc_lock);
+// 			pr_info("unable to submit %s, %d.\n", engine->name, rv);
+// 			goto unmap_sgl;
+// 	}
+// 	if (engine->cmplthp)
+// 			xdma_kthread_wakeup(engine->cmplthp);
+// 	xlx_wait_event_interruptible(xfer->wq,
+// 				(xfer->state != TRANSFER_STATE_SUBMITTED));
+// 	mutex_unlock(&engine->desc_lock);
 
-	// char_sgdma_unmap_user_buf(&cb, write);
 
-	// return res;
+// 	// rv = check_transfer_align(engine, buf, count, *pos, 1);
+// 	// if (rv) {
+// 	// 	pr_info("Invalid transfer alignment detected\n");
+// 	// 	return rv;
+// 	// }
+
+// 	// memset(&cb, 0, sizeof(struct xdma_io_cb));
+// 	// cb.buf = (char __user *)buf;
+// 	// cb.len = count;
+// 	// cb.ep_addr = (u64)*pos;
+// 	// cb.write = write;
+// 	// rv = char_sgdma_map_user_buf_to_sgl(&cb, write);
+// 	// if (rv < 0)
+// 	// 	return rv;
+
+// 	// res = xdma_xfer_submit(xdev, engine->channel, write, *pos, &cb.sgt,
+// 	// 			0, h2c_timeout * 1000 );
+
+// 	// char_sgdma_unmap_user_buf(&cb, write);
+
+// 	// return res;
+unmap_sgl:
+	pci_unmap_single(xdev->pdev, paddr, skb->len,
+				     PCI_DMA_TODEVICE);
 	return 0;
 }
+
+struct xdma_request_cb *xdma_request_alloc_net(unsigned int sdesc_nr)
+{
+	struct xdma_request_cb *req;
+	unsigned int size = sizeof(struct xdma_request_cb) +
+			    sdesc_nr * sizeof(struct sw_desc);
+
+	req = kzalloc(size, GFP_KERNEL);
+	if (!req) {
+		req = vmalloc(size);
+		if (req)
+			memset(req, 0, size);
+	}
+	if (!req) {
+		pr_info("OOM, %u sw_desc, %u.\n", sdesc_nr, size);
+		return NULL;
+	}
+
+	return req;
+}
+
 
 
 static ssize_t char_sgdma_write(struct file *file, const char __user *buf,

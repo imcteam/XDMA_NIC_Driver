@@ -3143,6 +3143,47 @@ static struct xdma_request_cb *xdma_init_request(struct sg_table *sgt,
 	return req;
 }
 
+ssize_t xdma_xfer_submit_net(void *dev_hndl,void *net_req)
+{
+	struct xdma_dev *xdev = (struct xdma_dev *)dev_hndl;
+	struct xdma_request_cb *req = (struct xdma_request_cb *)net_req;
+	struct xdma_transfer *xfer;
+	struct xdma_engine *engine;
+	int rv=0;
+	ssize_t done = 0;
+
+	engine = &xdev->engine_h2c[0];
+
+	//mutex_lock(&engine->desc_lock);
+	rv = transfer_init(engine, req, &req->tfer[0]);
+	if (rv < 0) {
+			//mutex_unlock(&engine->desc_lock);
+			goto unmap_sgl;
+	}
+	xfer = &req->tfer[0];
+	xfer->flags = XFER_FLAG_NEED_UNMAP;
+
+	rv = transfer_queue(engine, xfer);
+	if (rv < 0) {
+			//mutex_unlock(&engine->desc_lock);
+			pr_info("unable to submit %s, %d.\n", engine->name, rv);
+			goto unmap_sgl;
+	}
+	printk(KERN_INFO"lcf_log:SEND OK\n");
+	// if (engine->cmplthp)
+	// 		xdma_kthread_wakeup(engine->cmplthp);
+
+	// xlx_wait_event_interruptible(xfer->wq,
+	// 			(xfer->state != TRANSFER_STATE_SUBMITTED));
+	//mutex_unlock(&engine->desc_lock);
+
+unmap_sgl:
+	// pci_unmap_single(xdev->pdev, paddr, skb->len,
+	// 			     PCI_DMA_TODEVICE);
+
+	return done ? done : rv;
+}
+
 ssize_t xdma_xfer_submit(void *dev_hndl, int channel, bool write, u64 ep_addr,
 			 struct sg_table *sgt, bool dma_mapped, int timeout_ms)
 {
@@ -3167,7 +3208,7 @@ ssize_t xdma_xfer_submit(void *dev_hndl, int channel, bool write, u64 ep_addr,
 				xdev->h2c_channel_max);
 			return -EINVAL;
 		}
-		engine = &xdev->engine_h2c[channel];
+		engine = &xdev->engine_h2c[channel];//engine init
 	} else if (write == 0) {
 		if (channel >= xdev->c2h_channel_max) {
 			pr_err("C2H channel %d >= %d.\n", channel,
