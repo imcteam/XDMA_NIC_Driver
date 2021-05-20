@@ -30,6 +30,7 @@
 #include "libxdma.h"
 #include "xdma_mod.h"
 #include "xdma_cdev.h"
+#include "cdev_sgdma.h"
 #include "version.h"
 
 #define DRV_MODULE_NAME		"xdma"
@@ -150,26 +151,38 @@ static struct xdma_pci_dev *xpdev_alloc(struct pci_dev *pdev)
 	return xpdev;
 }
 
+
+
 static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	int i;
+	loff_t *pos=0;
     // 告诉内核不要传入更多的帧
     netif_stop_queue(dev);
     
     // 打印出数据帧
     printk("send, length=%d:\n",skb->len);
-    for(i=0;i<skb->len;i++){
-        printk(KERN_CONT "%02x ",skb->data[i]);
-    }
-    printk("\n");
+    // for(i=0;i<skb->len;i++){
+    //     printk(KERN_CONT "%02x ",skb->data[i]);
+    // }
+    // printk("\n");
 	
     // 统计已发送的数据包
     dev->stats.tx_packets++;
     // 统计已发送的字节
     dev->stats.tx_bytes+=skb->len;
-    
+
+	char sbuf[skb->len+1];
+	for(i=0;i<skb->len;i++){
+		sbuf[i]=skb->data[i];
+	}
+	sbuf[skb->len]='\0';
+
+    char_sgdma_read_write_net(dev, sbuf, skb->len, pos, 1);
+	
     // 释放数据帧
     dev_kfree_skb(skb);
+	
     
     // 告诉内核可以传入更多帧了
     netif_wake_queue(dev);
@@ -278,6 +291,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->engine = xpdev->sgdma_h2c_cdev[0].engine;
 
 	rv = register_netdev(netdev);
+	xpdev->netdev = netdev;
 	if (rv < 0) {
 		printk(KERN_INFO"lcf_log:register_netdev, err = %d", rv);
 		goto err_out;
@@ -301,11 +315,16 @@ static void remove_one(struct pci_dev *pdev)
 		return;
 
 	xpdev = dev_get_drvdata(&pdev->dev);
+
+	unregister_netdev(xpdev->netdev);
 	if (!xpdev)
 		return;
 
 	pr_info("pdev 0x%p, xdev 0x%p, 0x%p.\n",
 		pdev, xpdev, xpdev->xdev);
+	
+	free_netdev(xpdev->netdev);
+
 	xpdev_free(xpdev);
 
 	dev_set_drvdata(&pdev->dev, NULL);

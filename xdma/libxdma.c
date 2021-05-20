@@ -2174,7 +2174,7 @@ static void irq_teardown(struct xdma_dev *xdev)
 
 static int irq_setup(struct xdma_dev *xdev, struct pci_dev *pdev)
 {
-	printk(KERN_INFO"lcf_log:irq_setup\n");
+	//printk(KERN_INFO"lcf_log:irq_setup\n");
 	pci_keep_intx_enabled(pdev);
 
 	if (xdev->msix_enabled) {
@@ -3103,6 +3103,7 @@ static struct xdma_request_cb *xdma_init_request(struct sg_table *sgt,
 	dbg_tfr("ep 0x%llx, desc %u+%u.\n", ep_addr, max, extra);
 
 	max += extra;
+	printk(KERN_INFO"lcf_log:desc_blen_max:%d max:%d extra:%d\n",desc_blen_max,max,extra);
 	req = xdma_request_alloc(max);
 	if (!req)
 		return NULL;

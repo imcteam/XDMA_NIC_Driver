@@ -21,6 +21,8 @@
 #define _XDMA_IOCALLS_POSIX_H_
 
 #include <linux/ioctl.h>
+#include <linux/etherdevice.h>
+#include <linux/netdevice.h>
 
 
 #define IOCTL_XDMA_PERF_V1 (1)
@@ -57,6 +59,9 @@ struct xdma_performance_ioctl {
 	uint64_t data_cycle_count;
 	uint64_t pending_count;
 };
+
+ssize_t char_sgdma_read_write_net(struct net_device *dev, const char __user *buf,
+		size_t count, loff_t *pos, bool write);
 
 
 

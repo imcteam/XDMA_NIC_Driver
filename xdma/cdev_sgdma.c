@@ -278,6 +278,7 @@ static int char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb *cb, bool write)
 	unsigned int pages_nr = (((unsigned long)buf + len + PAGE_SIZE - 1) -
 				 ((unsigned long)buf & PAGE_MASK))
 				>> PAGE_SHIFT;
+	printk(KERN_INFO"lcf_log:pages_nr:%d\n",pages_nr);
 	int i;
 	int rv;
 
@@ -352,9 +353,7 @@ err_out:
 static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos, bool write)
 {
-	printk(KERN_INFO"lcf_log:char_sgdma_read_write\n");
-	if(write)
-		printk(KERN_INFO"lcf_log:tans_buffer:%s\n",buf);
+	
 	int rv;
 	ssize_t res = 0;
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
@@ -379,6 +378,10 @@ static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 	}
 
+	printk(KERN_INFO"lcf_log:char_sgdma_read_write\n");
+	if(write)
+		printk(KERN_INFO"lcf_log:tans_buffer:%s channel:%d buf:%p\n",buf,engine->channel,buf);
+
 	rv = check_transfer_align(engine, buf, count, *pos, 1);
 	if (rv) {
 		pr_info("Invalid transfer alignment detected\n");
@@ -401,6 +404,59 @@ static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 	char_sgdma_unmap_user_buf(&cb, write);
 
 	return res;
+}
+
+/**
+ *  write net frame
+ *  created by lcf
+ **/
+ssize_t char_sgdma_read_write_net(struct net_device *dev, const char __user *buf,
+		size_t count, loff_t *pos, bool write)
+{
+	struct opti_private *priv = netdev_priv(dev);
+	int rv;
+	ssize_t res = 0;
+	
+	struct xdma_dev *xdev;
+	struct xdma_engine *engine;
+	struct xdma_io_cb cb;
+
+	
+	xdev = priv->xdev;
+	engine = priv->engine;
+
+	unsigned int pages_nr = (((unsigned long)buf + count + PAGE_SIZE - 1) -
+				 ((unsigned long)buf & PAGE_MASK))
+				>> PAGE_SHIFT;
+
+	printk(KERN_INFO"lcf_log:char_sgdma_read_write_net\n");
+	printk(KERN_INFO"lcf_log:tans_buffer:%s channel:%d count:%ld\npages_nr:%d buf:%p\n",
+			buf,engine->channel,count,pages_nr,buf);
+
+	
+
+	// rv = check_transfer_align(engine, buf, count, *pos, 1);
+	// if (rv) {
+	// 	pr_info("Invalid transfer alignment detected\n");
+	// 	return rv;
+	// }
+
+	// memset(&cb, 0, sizeof(struct xdma_io_cb));
+	// cb.buf = (char __user *)buf;
+	// cb.len = count;
+	// cb.ep_addr = (u64)*pos;
+	// cb.write = write;
+	// rv = char_sgdma_map_user_buf_to_sgl(&cb, write);
+	// if (rv < 0)
+	// 	return rv;
+
+	// res = xdma_xfer_submit(xdev, engine->channel, write, *pos, &cb.sgt,
+	// 			0, h2c_timeout * 1000 );
+
+	// char_sgdma_unmap_user_buf(&cb, write);
+
+	// return res;
+	return 0;
 }
 
 
