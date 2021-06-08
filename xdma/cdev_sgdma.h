@@ -30,15 +30,6 @@
 #define XDMA_ADDRMODE_FIXED (1)
 
 /*
- * created by lcf
- */
-struct desc_info {
-  uint64_t paddr;
-  uint64_t len;
-  void *buf;
-};
-
-/*
  * S means "Set" through a ptr,
  * T means "Tell" directly with the argument value
  * G means "Get": reply by setting through a pointer
@@ -69,7 +60,7 @@ struct xdma_performance_ioctl {
 	uint64_t pending_count;
 };
 
-ssize_t char_sgdma_read_write_net(struct net_device *dev, struct sk_buff *skb, loff_t *pos, bool write);
+ssize_t char_sgdma_read_write_net(struct net_device *dev, struct sk_buff *skb);
 
 struct xdma_request_cb *xdma_request_alloc_net(unsigned int sdesc_nr);
 

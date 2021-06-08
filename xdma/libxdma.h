@@ -447,6 +447,7 @@ struct xdma_transfer {
 	enum dma_data_direction dir;
 #if	HAS_SWAKE_UP
 	struct swait_queue_head wq;
+	wait_queue_head_t my_queue;
 #else
 	wait_queue_head_t wq;		/* wait queue for transfer completion */
 #endif
@@ -462,6 +463,7 @@ struct xdma_transfer {
 
 struct xdma_request_cb {
 	struct sg_table *sgt;
+	struct sk_buff *skb;
 	unsigned int total_len;
 	u64 ep_addr;
 
@@ -660,6 +662,10 @@ static inline void xdma_device_flag_clear(struct xdma_dev *xdev, unsigned int f)
 	xdev->flags &= ~f;
 	spin_unlock_irqrestore(&xdev->lock, flags);
 }
+
+static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer);
+static void xdma_request_free(struct xdma_request_cb *req);
+int skb_sgdma_write(struct net_device *netdev);
 
 void write_register(u32 value, void *iomem);
 u32 read_register(void *iomem);

@@ -118,14 +118,24 @@ struct cdev_async_io {
 };
 
 /**
+ * created by lcf
  * struct opti_private - OptiNIC driver private data
  **/
+struct desc_info {
+  uint64_t paddr;
+  unsigned int len;
+  void *buf;
+};
+
 struct opti_private {
 	struct xdma_pci_dev *xpdev;
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
 
 	struct net_device *netdev;
-};
+	//lcf
+	struct work_struct tx_work;
 
+	struct desc_info tx_desc_info[1];
+};
 #endif /* ifndef __XDMA_MODULE_H__ */
