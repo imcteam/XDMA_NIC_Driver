@@ -2931,15 +2931,15 @@ static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer)
     /* free descriptors */
 	xdma_desc_done(xfer->desc_virt, xfer->desc_num);
 
-	if (xfer->last_in_request && (xfer->flags & XFER_FLAG_NEED_UNMAP)) {
-		struct sg_table *sgt = xfer->sgt;
+	// if (xfer->last_in_request && (xfer->flags & XFER_FLAG_NEED_UNMAP)) {
+	// 	struct sg_table *sgt = xfer->sgt;
 
-		if (sgt->nents) {
-			pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->nents,
-				     xfer->dir);
-			sgt->nents = 0;
-		}
-	}
+	// 	if (sgt->nents) {
+	// 		pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->nents,
+	// 			     xfer->dir);
+	// 		sgt->nents = 0;
+	// 	}
+	// }
 }
 
 static int transfer_build(struct xdma_engine *engine,
@@ -2984,9 +2984,10 @@ static int transfer_build(struct xdma_engine *engine,
 static int transfer_init(struct xdma_engine *engine,
 			struct xdma_request_cb *req, struct xdma_transfer *xfer)
 {
-	unsigned int desc_max = min_t(unsigned int,
-				req->sw_desc_cnt - req->sw_desc_idx,
-				XDMA_TRANSFER_MAX_DESC);
+	// unsigned int desc_max = min_t(unsigned int,
+	// 			req->sw_desc_cnt - req->sw_desc_idx,
+	// 			XDMA_TRANSFER_MAX_DESC);
+	unsigned int desc_max = 1;
 	int i = 0;
 	int last = 0;
 	u32 control;
@@ -3016,8 +3017,8 @@ static int transfer_init(struct xdma_engine *engine,
 
 	/* Need to handle desc_used >= XDMA_TRANSFER_MAX_DESC */
 
-	if ((engine->desc_idx + desc_max) >= XDMA_TRANSFER_MAX_DESC)
-		desc_max = XDMA_TRANSFER_MAX_DESC - engine->desc_idx;
+	// if ((engine->desc_idx + desc_max) >= XDMA_TRANSFER_MAX_DESC)
+	// 	desc_max = XDMA_TRANSFER_MAX_DESC - engine->desc_idx;
 
 	transfer_desc_init(xfer, desc_max);
 
@@ -4537,7 +4538,7 @@ int skb_sgdma_write(struct net_device *netdev)
 
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
-	struct xdma_request_cb *req;
+	struct xdma_request_cb *req = NULL;
 	struct xdma_transfer *xfer;
 	enum dma_data_direction dir = DMA_TO_DEVICE;
 
@@ -4565,6 +4566,14 @@ int skb_sgdma_write(struct net_device *netdev)
 		return -EINVAL;
 	}
 
+	info->paddr = pci_map_single(xdev->pdev, (void *)info->buf, info->len,
+				     PCI_DMA_TODEVICE);
+	if (!info->paddr) {
+			//pr_info("map sgl failed, sgt 0x%p.\n", sgt);
+			printk(KERN_INFO"pci_map_single failed.\n\n\n");
+			return -EIO;
+	}
+
 	req = xdma_request_alloc(1);
 	
 	req->sgt = NULL;
@@ -4573,14 +4582,9 @@ int skb_sgdma_write(struct net_device *netdev)
 	//req->sdesc[0].addr = paddr;
 	req->sdesc[0].len = info->len;
 	req->sw_desc_cnt = 1;
+	req->sw_desc_idx = 0;
 	req->skb = NULL;
-	req->sdesc[0].addr = pci_map_single(xdev->pdev, (void *)info->buf, info->len,
-				     PCI_DMA_TODEVICE);
-	if (!req->sdesc[0].addr) {
-			//pr_info("map sgl failed, sgt 0x%p.\n", sgt);
-			printk(KERN_INFO"pci_map_single failed.\n\n\n");
-			return -EIO;
-	}
+	req->sdesc[0].addr = info->paddr;
 
 	mutex_lock(&engine->desc_lock);
 	rv = transfer_init(engine, req, &req->tfer[0]);
@@ -4590,6 +4594,7 @@ int skb_sgdma_write(struct net_device *netdev)
 	}
 	xfer = &req->tfer[0];
 	xfer->flags = XFER_FLAG_NEED_UNMAP;
+	xfer->last_in_request = 1;
 
 	rv = transfer_queue(engine, xfer);
 	if (rv < 0) {
@@ -4635,22 +4640,21 @@ int skb_sgdma_write(struct net_device *netdev)
 		spin_unlock_irqrestore(&engine->lock, flags);
 		break;
 	}
+	engine->desc_used -= xfer->desc_num;
+
+	transfer_destroy(xdev, xfer);
+	mutex_unlock(&engine->desc_lock);
 	
 	printk(KERN_INFO"lcf_log:SEND OK\n");			
-	mutex_unlock(&engine->desc_lock);
-
-	engine->desc_used -= xfer->desc_num;
-	transfer_destroy(xdev, xfer);
-
+	
+unmap_sgl:	
+	pci_unmap_single(xdev->pdev, info->paddr, info->len,
+				     PCI_DMA_TODEVICE);
 	if (req)
 		xdma_request_free(req);
-
-unmap_sgl:	
-	pci_unmap_single(xdev->pdev, req->sdesc[0].addr, info->len,
-				     PCI_DMA_TODEVICE);
+		
 	memset(info->buf,0,1700);
 	netif_wake_queue(netdev);
-
 	
 	return 0;
 }
