@@ -151,7 +151,7 @@ static struct xdma_pci_dev *xpdev_alloc(struct pci_dev *pdev)
 	return xpdev;
 }
 
-static void work_handler(struct work_struct *work)  
+static void tx_work_handler(struct work_struct *work)  
 {
 	struct opti_private *priv;
 
@@ -161,6 +161,17 @@ static void work_handler(struct work_struct *work)
     // printk("work handler function.\n");
 	// printk("net2=%p:\n",priv->netdev);
 	// printk("send, length=%lld:\n\n",info->len);
+} 
+
+static void rx_work_handler(struct work_struct *work)  
+{
+	struct opti_private *priv;
+
+	priv = container_of(work, struct opti_private, rx_work); 
+	
+
+    printk("rx_work_handler function.\n");
+	printk("receive, length=%lld:\n\n",priv->tx_desc_info->last_len);
 } 
 
 
@@ -208,6 +219,9 @@ static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
     dev->stats.tx_bytes+=info->len;
 
 	schedule_work(&priv->tx_work);
+
+	if(dev->stats.tx_packets==5 && info->last_len)
+		schedule_work(&priv->rx_work);
 
 	// char sbuf[skb->len+1];
 	// for(i=0;i<skb->len;i++){
@@ -328,12 +342,18 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->engine = xpdev->sgdma_h2c_cdev[0].engine;
 
 	memset(priv->tx_desc_info, 0, sizeof(priv->tx_desc_info));
+	memset(priv->rx_desc_info, 0, sizeof(priv->rx_desc_info));
 
 	info = priv->tx_desc_info;
 	info->buf = kmalloc(1700, GFP_KERNEL);
-
 	if (!info->buf) {
 		printk("kmalloc info->buf error\n");
+		goto err_out;
+	}
+	info = priv->rx_desc_info;
+	info->buf = kmalloc(1700, GFP_KERNEL);
+	if (!info->buf) {
+		printk("kmalloc info->buf2 error\n");
 		goto err_out;
 	}
 
@@ -344,7 +364,8 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_out;
 	}
 
-	INIT_WORK(&priv->tx_work,work_handler);
+	INIT_WORK(&priv->tx_work,tx_work_handler);
+	INIT_WORK(&priv->rx_work,rx_work_handler);
 
 	dev_set_drvdata(&pdev->dev, xpdev);
 
@@ -370,7 +391,9 @@ static void remove_one(struct pci_dev *pdev)
 
 	priv = netdev_priv(xpdev->netdev);
 	info = priv->tx_desc_info;
-
+	kfree(info->buf);
+	info->buf = NULL;
+	info = priv->rx_desc_info;
 	kfree(info->buf);
 	info->buf = NULL;
 

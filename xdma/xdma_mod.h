@@ -124,6 +124,7 @@ struct cdev_async_io {
 struct desc_info {
   uint64_t paddr;
   unsigned int len;
+  unsigned int last_len;
   void *buf;
 };
 
@@ -135,7 +136,9 @@ struct opti_private {
 	struct net_device *netdev;
 	//lcf
 	struct work_struct tx_work;
+	struct work_struct rx_work;
 
 	struct desc_info tx_desc_info[1];
+	struct desc_info rx_desc_info[1];
 };
 #endif /* ifndef __XDMA_MODULE_H__ */

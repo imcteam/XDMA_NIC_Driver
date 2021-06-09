@@ -4612,6 +4612,7 @@ int skb_sgdma_write(struct net_device *netdev)
 	switch (xfer->state) {
 	case TRANSFER_STATE_COMPLETED:
 		spin_unlock_irqrestore(&engine->lock, flags);
+		info->last_len = info->len;
 		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
 				xfer, xfer->len, req->ep_addr - xfer->len);
 		break;
