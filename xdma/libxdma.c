@@ -4659,3 +4659,135 @@ unmap_sgl:
 	
 	return 0;
 }
+
+int skb_sgdma_read(struct net_device *netdev)
+{
+	struct opti_private *priv;
+	struct desc_info *info;
+
+	int rv;
+
+	struct xdma_dev *xdev;
+	struct xdma_engine *engine;
+	struct xdma_request_cb *req = NULL;
+	struct xdma_transfer *xfer;
+	enum dma_data_direction dir = DMA_FROM_DEVICE;
+
+	priv = netdev_priv(netdev); 
+	info = priv->rx_desc_info;
+	xdev = priv->xdev;
+	engine = &xdev->engine_c2h[0];
+	unsigned long flags;
+
+	if (!engine) {
+		//pr_err("dma engine NULL\n");
+		printk(KERN_INFO"lcf_log:dma engine NULL\n");
+		return -EINVAL;
+	}
+	xdev = engine->xdev;
+	if (xdma_device_flag_check(xdev, XDEV_FLAG_OFFLINE)) {
+		//pr_info("xdev 0x%p, offline.\n", xdev);
+		printk(KERN_INFO"xdev 0x%p, offline.\n", xdev);
+		return -EBUSY;
+	}
+
+	if (engine->dir != dir) {
+		// pr_info("0x%p, %s, %d, W %d, 0x%x/0x%x mismatch.\n", engine,
+		// 	engine->name, channel, write, engine->dir, dir);
+		return -EINVAL;
+	}
+
+	info->paddr = pci_map_single(xdev->pdev, (void *)info->buf, info->len,
+				     PCI_DMA_TODEVICE);
+	if (!info->paddr) {
+			//pr_info("map sgl failed, sgt 0x%p.\n", sgt);
+			printk(KERN_INFO"pci_map_single failed.\n\n\n");
+			return -EIO;
+	}
+
+	req = xdma_request_alloc(1);
+	
+	req->sgt = NULL;
+	req->ep_addr = 0;
+	req->total_len = info->len;
+	//req->sdesc[0].addr = paddr;
+	req->sdesc[0].len = info->len;
+	req->sw_desc_cnt = 1;
+	req->sw_desc_idx = 0;
+	req->skb = NULL;
+	req->sdesc[0].addr = info->paddr;
+
+	mutex_lock(&engine->desc_lock);
+	rv = transfer_init(engine, req, &req->tfer[0]);
+	if (rv < 0) {
+			//mutex_unlock(&engine->desc_lock);
+			goto unmap_sgl;
+	}
+	xfer = &req->tfer[0];
+	xfer->flags = XFER_FLAG_NEED_UNMAP;
+	xfer->last_in_request = 1;
+
+	rv = transfer_queue(engine, xfer);
+	if (rv < 0) {
+			//mutex_unlock(&engine->desc_lock);
+			pr_info("unable to submit %s, %d.\n", engine->name, rv);
+			goto unmap_sgl;
+	}
+	printk(KERN_INFO"lcf_log:SEND BEGIN\n");
+	xlx_wait_event_interruptible_timeout(xfer->wq,
+				(xfer->state != TRANSFER_STATE_SUBMITTED),
+				msecs_to_jiffies(1000));
+	
+	spin_lock_irqsave(&engine->lock, flags);
+
+	switch (xfer->state) {
+	case TRANSFER_STATE_COMPLETED:
+		spin_unlock_irqrestore(&engine->lock, flags);
+		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
+				xfer, xfer->len, req->ep_addr - xfer->len);
+		struct xdma_result *result = xfer->res_virt;
+		printk("receive length:%lld\n\n",result[0].length);
+		break;
+	case TRANSFER_STATE_FAILED:
+		pr_info("xfer 0x%p,%u, failed, ep 0x%llx.\n", xfer,
+				xfer->len, req->ep_addr - xfer->len);
+		spin_unlock_irqrestore(&engine->lock, flags);
+		break;
+	default:
+		pr_info("xfer 0x%p,%u, s 0x%x timed out, ep 0x%llx.\n",
+				xfer, xfer->len, xfer->state, req->ep_addr);
+		rv = engine_status_read(engine, 0, 1);
+		if (rv < 0) {
+			pr_err("Failed to read engine status\n");
+		} else if (rv == 0) {
+			//engine_status_dump(engine);
+			rv = transfer_abort(engine, xfer);
+			if (rv < 0) {
+				pr_err("Failed to stop engine\n");
+			} else if (rv == 0) {
+				rv = xdma_engine_stop(engine);
+				if (rv < 0)
+					pr_err("Failed to stop engine\n");
+			}
+		}
+		spin_unlock_irqrestore(&engine->lock, flags);
+		break;
+	}
+	engine->desc_used -= xfer->desc_num;
+
+	transfer_destroy(xdev, xfer);
+	mutex_unlock(&engine->desc_lock);
+	
+	printk(KERN_INFO"lcf_log:receive OK\n");			
+	
+unmap_sgl:	
+	pci_unmap_single(xdev->pdev, info->paddr, info->len,
+				     PCI_DMA_TODEVICE);
+	if (req)
+		xdma_request_free(req);
+		
+	memset(info->buf,0,1700);
+	netif_wake_queue(netdev);
+	
+	return 0;
+}

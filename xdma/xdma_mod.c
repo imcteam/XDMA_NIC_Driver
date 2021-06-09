@@ -168,10 +168,12 @@ static void rx_work_handler(struct work_struct *work)
 	struct opti_private *priv;
 
 	priv = container_of(work, struct opti_private, rx_work); 
-	
+	priv->rx_desc_info->len = priv->tx_desc_info->last_len;
 
-    printk("rx_work_handler function.\n");
-	printk("receive, length=%lld:\n\n",priv->tx_desc_info->last_len);
+	skb_sgdma_read(priv->netdev);
+
+    // printk("rx_work_handler function.\n");
+	// printk("receive, length=%lld:\n\n",priv->tx_desc_info->last_len);
 } 
 
 
