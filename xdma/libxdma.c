@@ -26,12 +26,15 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/delay.h>
 
 #include "libxdma.h"
 #include "xdma_mod.h"
 #include "libxdma_api.h"
 #include "cdev_sgdma.h"
 #include "xdma_thread.h"
+
+void* bar0;
 
 
 /* Module Parameters */
@@ -1226,6 +1229,47 @@ done:
 	return err_flag ? -1 : 0;
 }
 
+//lcf work_rx
+static void engine_rx_work(struct work_struct *work)
+{
+	printk(KERN_INFO"engine_rx_work\n\n\n");
+
+	struct xdma_engine *engine;
+	engine = container_of(work, struct xdma_engine, work);
+
+	//mdelay(1000);
+	iowrite32(11, bar0);
+	iowrite32(11, bar0 + 0x04);
+	iowrite32(11, bar0 + 0x08);
+	iowrite32(11, bar0 + 0x0c);
+	iowrite32(11, bar0 + 0x10);
+	iowrite32(11, bar0 + 0x14);
+	
+	printk("user_bar 0x00:%d\n",ioread32(bar0 + 0x00));
+	printk("user_bar 0x04:%d\n",ioread32(bar0 + 0x04));
+	printk("user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
+	printk("user_bar 0x0c:%d\n",ioread32(bar0 + 0x0c));
+	printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
+	printk("user_bar 0x14:%d\n",ioread32(bar0 + 0x14));
+	// printk("user_bar 0x0c:%d\n",ioread32(engine->xdev->bar[0] + 0x0c));
+
+	iowrite32(0, bar0);
+	iowrite32(0, bar0 + 0x04);
+	iowrite32(0, bar0 + 0x08);
+	iowrite32(0, bar0 + 0x0c);
+	iowrite32(0, bar0 + 0x10);
+	iowrite32(0, bar0 + 0x14);
+	
+	printk("user_bar 0x00:%d\n",ioread32(bar0 + 0x00));
+	printk("user_bar 0x04:%d\n",ioread32(bar0 + 0x04));
+	printk("user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
+	printk("user_bar 0x0c:%d\n",ioread32(bar0 + 0x0c));
+	printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
+	printk("user_bar 0x14:%d\n",ioread32(bar0 + 0x14));
+	
+	
+}
+
 /* engine_service_work */
 static void engine_service_work(struct work_struct *work)
 {
@@ -1398,6 +1442,9 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	u32 mask;
 	struct xdma_dev *xdev;
 	struct interrupt_regs *irq_regs;
+	struct pci_dev *pdev;
+	struct xdma_pci_dev *xpdev;
+	struct opti_private *priv;
 
 	dbg_irq("(irq=%d, dev 0x%p) <<<< ISR.\n", irq, dev_id);
 	if (!dev_id) {
@@ -1411,6 +1458,9 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 		dbg_irq("%s(irq=%d) xdev=%p ??\n", __func__, irq, xdev);
 		return IRQ_NONE;
 	}
+	pdev = xdev->pdev;
+	xpdev = dev_get_drvdata(&pdev->dev);
+	priv = netdev_priv(xpdev->netdev);
 
 	irq_regs = (struct interrupt_regs *)(xdev->bar[xdev->config_bar_idx] +
 					     XDMA_OFS_INT_CTRL);
@@ -1430,17 +1480,26 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	user_irq = read_register(&irq_regs->user_int_request);
 	dbg_irq("user_irq = 0x%08x\n", user_irq);
 
-	if (user_irq) {
-		int user = 0;
-		u32 mask = 1;
-		int max = xdev->user_max;
+	bar0 = xdev->bar[0];
 
-		for (; user < max && user_irq; user++, mask <<= 1) {
-			if (user_irq & mask) {
-				user_irq &= ~mask;
-				user_irq_service(irq, &xdev->user_irq[user]);
-			}
-		}
+	if (user_irq) {
+		printk("user_bar 0x10:%d\n",ioread32(xdev->bar[0] + 0x10));
+		printk("user_bar 0x00:%d\n",ioread32(xdev->bar[0] + 0x00));
+		printk("user_bar 0x04:%d\n",ioread32(xdev->bar[0] + 0x04));
+		printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
+		printk("user_bar 0x0c:%d\n",ioread32(xdev->bar[0] + 0x0c));
+		struct xdma_engine *engine = &xdev->engine_h2c[0];
+		schedule_work(&engine->work_rx);
+		// int user = 0;
+		// u32 mask = 1;
+		// int max = xdev->user_max;
+
+		// for (; user < max && user_irq; user++, mask <<= 1) {
+		// 	if (user_irq & mask) {
+		// 		user_irq &= ~mask;
+		// 		user_irq_service(irq, &xdev->user_irq[user]);
+		// 	}
+		// }
 	}
 
 	mask = ch_irq & xdev->mask_irq_h2c;
@@ -2904,6 +2963,7 @@ static int engine_init(struct xdma_engine *engine, struct xdma_dev *xdev,
 
 	/* initialize the deferred work for transfer completion */
 	INIT_WORK(&engine->work, engine_service_work);
+	INIT_WORK(&engine->work_rx, engine_rx_work);
 
 	if (dir == DMA_TO_DEVICE)
 		xdev->mask_irq_h2c |= engine->irq_bitmask;
@@ -4733,10 +4793,12 @@ int skb_sgdma_read(struct net_device *netdev)
 			pr_info("unable to submit %s, %d.\n", engine->name, rv);
 			goto unmap_sgl;
 	}
-	printk(KERN_INFO"lcf_log:SEND BEGIN\n");
+	printk(KERN_INFO"lcf_log:receive BEGIN\n\n\n");
 	xlx_wait_event_interruptible_timeout(xfer->wq,
 				(xfer->state != TRANSFER_STATE_SUBMITTED),
 				msecs_to_jiffies(1000));
+	
+	printk("wake success\n\n");
 	
 	spin_lock_irqsave(&engine->lock, flags);
 
@@ -4745,8 +4807,24 @@ int skb_sgdma_read(struct net_device *netdev)
 		spin_unlock_irqrestore(&engine->lock, flags);
 		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
 				xfer, xfer->len, req->ep_addr - xfer->len);
-		struct xdma_result *result = xfer->res_virt;
-		printk("receive length:%lld\n\n",result[0].length);
+		// struct xdma_result *result = xfer->res_virt;
+		// printk("receive length:%d\n\n",result[0].length);
+		printk("trans success\n\n");
+		unsigned char *revmeg = (unsigned char *)info->buf;
+		unsigned int len_rev = info->len;
+		while(len_rev){
+			printk(KERN_CONT "%02x  ",revmeg[info->len-len_rev]);
+			len_rev--;
+		}
+		printk("\n\n\n\n");
+		struct sk_buff* skb = dev_alloc_skb(info->len+2);
+		skb_copy_to_linear_data(skb, info->buf, info->len);
+		skb->dev = netdev;
+		skb->protocol = eth_type_trans(skb, netdev);
+		skb->ip_summed = CHECKSUM_NONE;
+		netdev->stats.rx_packets++;
+		netdev->stats.rx_bytes += info->len;
+		netif_rx(skb);		
 		break;
 	case TRANSFER_STATE_FAILED:
 		pr_info("xfer 0x%p,%u, failed, ep 0x%llx.\n", xfer,

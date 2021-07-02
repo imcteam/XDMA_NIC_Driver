@@ -533,6 +533,9 @@ struct xdma_engine {
 	u32 irq_bitmask;		/* IRQ bit mask for this engine */
 	struct work_struct work;	/* Work queue for interrupt handling */
 
+	//lcf
+	struct work_struct work_rx;
+
 	struct mutex desc_lock;		/* protects concurrent access */
 	dma_addr_t desc_bus;
 	struct xdma_desc *desc;
@@ -666,6 +669,7 @@ static inline void xdma_device_flag_clear(struct xdma_dev *xdev, unsigned int f)
 static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer);
 static void xdma_request_free(struct xdma_request_cb *req);
 int skb_sgdma_write(struct net_device *netdev);
+int skb_sgdma_read(struct net_device *netdev);
 
 void write_register(u32 value, void *iomem);
 u32 read_register(void *iomem);

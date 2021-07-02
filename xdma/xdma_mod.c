@@ -154,11 +154,13 @@ static struct xdma_pci_dev *xpdev_alloc(struct pci_dev *pdev)
 static void tx_work_handler(struct work_struct *work)  
 {
 	struct opti_private *priv;
+	struct xdma_dev *xdev;
 
 	priv = container_of(work, struct opti_private, tx_work); 
-	skb_sgdma_write(priv->netdev);
+	// skb_sgdma_write(priv->netdev);
 
-    // printk("work handler function.\n");
+    printk("work handler function.\n");
+
 	// printk("net2=%p:\n",priv->netdev);
 	// printk("send, length=%lld:\n\n",info->len);
 } 
@@ -166,14 +168,25 @@ static void tx_work_handler(struct work_struct *work)
 static void rx_work_handler(struct work_struct *work)  
 {
 	struct opti_private *priv;
+	struct xdma_dev *xdev;
 
-	priv = container_of(work, struct opti_private, rx_work); 
-	priv->rx_desc_info->len = priv->tx_desc_info->last_len;
+	priv = container_of(work, struct opti_private, tx_work); 
+	xdev = priv->xdev;
 
-	skb_sgdma_read(priv->netdev);
+	iowrite32(0, xdev->bar[0] + 0x08);
 
-    // printk("rx_work_handler function.\n");
+	printk("user_bar 0x10:%d\n",ioread32(xdev->bar[0] + 0x10));
+	printk("user_bar 0x00:%d\n",ioread32(xdev->bar[0] + 0x00));
+	printk("user_bar 0x04:%d\n",ioread32(xdev->bar[0] + 0x04));
+	printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
+	printk("user_bar 0x0c:%d\n",ioread32(xdev->bar[0] + 0x0c));
+
+	//skb_sgdma_read(priv->netdev);
+
+    printk("rx_work_handler function.\n\n\n\n");
 	// printk("receive, length=%lld:\n\n",priv->tx_desc_info->last_len);
+	iowrite32(0, xdev->bar[0] + 0x08);
+	printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
 } 
 
 
@@ -222,8 +235,8 @@ static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	schedule_work(&priv->tx_work);
 
-	if(dev->stats.tx_packets==5 && info->last_len)
-		schedule_work(&priv->rx_work);
+	// if(dev->stats.tx_packets>5 && info->last_len )
+	// 	schedule_work(&priv->rx_work);
 
 	// char sbuf[skb->len+1];
 	// for(i=0;i<skb->len;i++){
