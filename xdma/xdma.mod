@@ -1,0 +1,2 @@
+/home/imc/workspace/XDMA_NIC_Driver/xdma/libxdma.o /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma_cdev.o /home/imc/workspace/XDMA_NIC_Driver/xdma/cdev_ctrl.o /home/imc/workspace/XDMA_NIC_Driver/xdma/cdev_events.o /home/imc/workspace/XDMA_NIC_Driver/xdma/cdev_sgdma.o /home/imc/workspace/XDMA_NIC_Driver/xdma/cdev_xvc.o /home/imc/workspace/XDMA_NIC_Driver/xdma/cdev_bypass.o /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma_mod.o /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma_thread.o
+

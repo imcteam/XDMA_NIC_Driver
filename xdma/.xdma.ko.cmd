@@ -1,0 +1,1 @@
+cmd_/home/imc/workspace/XDMA_NIC_Driver/xdma/xdma.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000  --build-id  -T ./scripts/module-common.lds -o /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma.ko /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma.o /home/imc/workspace/XDMA_NIC_Driver/xdma/xdma.mod.o;  true

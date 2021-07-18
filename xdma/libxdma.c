@@ -35,6 +35,8 @@
 #include "xdma_thread.h"
 
 void* bar0;
+struct net_device *net_dev_all;
+int i_count = 0;
 
 
 /* Module Parameters */
@@ -1235,24 +1237,39 @@ static void engine_rx_work(struct work_struct *work)
 	printk(KERN_INFO"engine_rx_work\n\n\n");
 
 	struct xdma_engine *engine;
-	engine = container_of(work, struct xdma_engine, work);
+	engine = container_of(work, struct xdma_engine, work_rx);
+
+	struct xdma_dev *xdev = engine->xdev;
+	struct pci_dev *pdev;
+	struct xdma_pci_dev *xpdev;
+	struct net_device *netdev;
+	struct opti_private *priv;
+	struct desc_info *info;
+
+	pdev = xdev->pdev;
+	xpdev = dev_get_drvdata(&pdev->dev);
+	netdev = xpdev->netdev;
+	priv = netdev_priv(netdev);
+	info = priv->rx_desc_info;
+	printk("info: %p\n",info);
+	printk("info->len:%d\n", info->len);
+
+	// unsigned int length = ioread32(bar0 + 0x10);
+	
+	// info->len = length;
+	// printk("%d\n\n",info->len);
+
+	printk(KERN_INFO"engine_rx_work2\n\n\n");
+	// if(i_count == 0){
+	// 	skb_sgdma_read(netdev);
+	// 	i_count++;
+	// }
+
+	skb_sgdma_read(netdev);
+	
 
 	//mdelay(1000);
-	iowrite32(11, bar0);
-	iowrite32(11, bar0 + 0x04);
-	iowrite32(11, bar0 + 0x08);
-	iowrite32(11, bar0 + 0x0c);
-	iowrite32(11, bar0 + 0x10);
-	iowrite32(11, bar0 + 0x14);
-	
-	printk("user_bar 0x00:%d\n",ioread32(bar0 + 0x00));
-	printk("user_bar 0x04:%d\n",ioread32(bar0 + 0x04));
-	printk("user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
-	printk("user_bar 0x0c:%d\n",ioread32(bar0 + 0x0c));
-	printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
-	printk("user_bar 0x14:%d\n",ioread32(bar0 + 0x14));
-	// printk("user_bar 0x0c:%d\n",ioread32(engine->xdev->bar[0] + 0x0c));
-
+	printk("immediately write:\n");
 	iowrite32(0, bar0);
 	iowrite32(0, bar0 + 0x04);
 	iowrite32(0, bar0 + 0x08);
@@ -1266,6 +1283,26 @@ static void engine_rx_work(struct work_struct *work)
 	printk("user_bar 0x0c:%d\n",ioread32(bar0 + 0x0c));
 	printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
 	printk("user_bar 0x14:%d\n",ioread32(bar0 + 0x14));
+	// printk("user_bar 0x0c:%d\n",ioread32(engine->xdev->bar[0] + 0x0c));
+
+	// mdelay(1000);
+	// printk("wait 1 secont and write:\n");
+	// iowrite32(0, bar0);
+	// iowrite32(0, bar0 + 0x04);
+	// iowrite32(0, bar0 + 0x08);
+	// iowrite32(0, bar0 + 0x0c);
+	// iowrite32(0, bar0 + 0x10);
+	// iowrite32(0, bar0 + 0x14);
+	
+	// printk("user_bar 0x00:%d\n",ioread32(bar0 + 0x00));
+	// printk("user_bar 0x04:%d\n",ioread32(bar0 + 0x04));
+	// printk("user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
+	// printk("user_bar 0x0c:%d\n",ioread32(bar0 + 0x0c));
+	// printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
+	// printk("user_bar 0x14:%d\n",ioread32(bar0 + 0x14));
+
+
+	printk("end of irq\n");
 	
 	
 }
@@ -1436,7 +1473,7 @@ static irqreturn_t user_irq_service(int irq, struct xdma_user_irq *user_irq)
  */
 static irqreturn_t xdma_isr(int irq, void *dev_id)
 {
-	printk(KERN_INFO"lcf_log:xdma_isr\n");
+	//printk(KERN_INFO"lcf_log:xdma_isr\n");
 	u32 ch_irq;
 	u32 user_irq;
 	u32 mask;
@@ -1445,6 +1482,7 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	struct pci_dev *pdev;
 	struct xdma_pci_dev *xpdev;
 	struct opti_private *priv;
+	struct desc_info *info;
 
 	dbg_irq("(irq=%d, dev 0x%p) <<<< ISR.\n", irq, dev_id);
 	if (!dev_id) {
@@ -1461,6 +1499,8 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	pdev = xdev->pdev;
 	xpdev = dev_get_drvdata(&pdev->dev);
 	priv = netdev_priv(xpdev->netdev);
+
+	net_dev_all = xpdev->netdev;
 
 	irq_regs = (struct interrupt_regs *)(xdev->bar[xdev->config_bar_idx] +
 					     XDMA_OFS_INT_CTRL);
@@ -1483,11 +1523,21 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	bar0 = xdev->bar[0];
 
 	if (user_irq) {
-		printk("user_bar 0x10:%d\n",ioread32(xdev->bar[0] + 0x10));
+		printk("\n\n");
+		printk("initial irq value:");
 		printk("user_bar 0x00:%d\n",ioread32(xdev->bar[0] + 0x00));
 		printk("user_bar 0x04:%d\n",ioread32(xdev->bar[0] + 0x04));
 		printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
 		printk("user_bar 0x0c:%d\n",ioread32(xdev->bar[0] + 0x0c));
+		printk("user_bar 0x10:%d\n",ioread32(xdev->bar[0] + 0x10));
+		printk("user_bar 0x14:%d\n",ioread32(xdev->bar[0] + 0x14));
+
+		info = priv->rx_desc_info;
+		info->len = (unsigned int)ioread32(xdev->bar[0] + 0x10);
+		printk("info: %p\n",info);
+		printk("info->len: %d\n",info->len);
+
+
 		struct xdma_engine *engine = &xdev->engine_h2c[0];
 		schedule_work(&engine->work_rx);
 		// int user = 0;
@@ -4770,7 +4820,6 @@ int skb_sgdma_read(struct net_device *netdev)
 	req->sgt = NULL;
 	req->ep_addr = 0;
 	req->total_len = info->len;
-	//req->sdesc[0].addr = paddr;
 	req->sdesc[0].len = info->len;
 	req->sw_desc_cnt = 1;
 	req->sw_desc_idx = 0;
@@ -4796,7 +4845,7 @@ int skb_sgdma_read(struct net_device *netdev)
 	printk(KERN_INFO"lcf_log:receive BEGIN\n\n\n");
 	xlx_wait_event_interruptible_timeout(xfer->wq,
 				(xfer->state != TRANSFER_STATE_SUBMITTED),
-				msecs_to_jiffies(1000));
+				msecs_to_jiffies(500));
 	
 	printk("wake success\n\n");
 	
@@ -4807,8 +4856,9 @@ int skb_sgdma_read(struct net_device *netdev)
 		spin_unlock_irqrestore(&engine->lock, flags);
 		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
 				xfer, xfer->len, req->ep_addr - xfer->len);
-		// struct xdma_result *result = xfer->res_virt;
-		// printk("receive length:%d\n\n",result[0].length);
+		struct xdma_result *result = xfer->res_virt;
+		printk("expected receive length:%d\n", info->len);
+		printk("truely receive length:%d\n\n",result[0].length);
 		printk("trans success\n\n");
 		unsigned char *revmeg = (unsigned char *)info->buf;
 		unsigned int len_rev = info->len;
@@ -4817,14 +4867,14 @@ int skb_sgdma_read(struct net_device *netdev)
 			len_rev--;
 		}
 		printk("\n\n\n\n");
-		struct sk_buff* skb = dev_alloc_skb(info->len+2);
-		skb_copy_to_linear_data(skb, info->buf, info->len);
-		skb->dev = netdev;
-		skb->protocol = eth_type_trans(skb, netdev);
-		skb->ip_summed = CHECKSUM_NONE;
-		netdev->stats.rx_packets++;
-		netdev->stats.rx_bytes += info->len;
-		netif_rx(skb);		
+		// struct sk_buff* skb = dev_alloc_skb(info->len+2);
+		// skb_copy_to_linear_data(skb, info->buf, info->len);
+		// skb->dev = netdev;
+		// skb->protocol = eth_type_trans(skb, netdev);
+		// skb->ip_summed = CHECKSUM_NONE;
+		// netdev->stats.rx_packets++;
+		// netdev->stats.rx_bytes += info->len;
+		// netif_rx(skb);		
 		break;
 	case TRANSFER_STATE_FAILED:
 		pr_info("xfer 0x%p,%u, failed, ep 0x%llx.\n", xfer,
