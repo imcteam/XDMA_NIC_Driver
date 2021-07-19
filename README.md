@@ -1,4 +1,5 @@
 # XDMA_NIC_Driver
+![avatar](https://raw.githubusercontent.com/ChangfengLi/XDMA_NIC_Driver/main/img/net_dev.jpg)
 ## 加载模块
 ```
 cd xdma
