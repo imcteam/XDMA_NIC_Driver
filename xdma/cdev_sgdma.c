@@ -508,27 +508,27 @@ struct xdma_request_cb *xdma_request_alloc_net(unsigned int sdesc_nr)
 static ssize_t char_sgdma_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_sgdma_write\n");
-	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
-	struct xdma_dev *xdev;
-	xdev = xcdev->xdev;
-	iowrite32(0,xdev->bar[0] + 0x08);
-	printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
-	return 0;
-	//return char_sgdma_read_write(file, buf, count, pos, 1);
+	// printk(KERN_INFO"lcf_log:char_sgdma_write\n");
+	// struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
+	// struct xdma_dev *xdev;
+	// xdev = xcdev->xdev;
+	// iowrite32(0,xdev->bar[0] + 0x08);
+	// printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
+	// return 0;
+	return char_sgdma_read_write(file, buf, count, pos, 1);
 }
 
 static ssize_t char_sgdma_read(struct file *file, char __user *buf,
 				size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_sgdma_read\n");
-	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
-	struct xdma_dev *xdev;
-	xdev = xcdev->xdev;
-	iowrite32(1,xdev->bar[0] + 0x08);
-	printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
-	return 0;
-	//return char_sgdma_read_write(file, buf, count, pos, 0);
+	// printk(KERN_INFO"lcf_log:char_sgdma_read\n");
+	// struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
+	// struct xdma_dev *xdev;
+	// xdev = xcdev->xdev;
+	// iowrite32(1,xdev->bar[0] + 0x08);
+	// printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
+	// return 0;
+	return char_sgdma_read_write(file, buf, count, pos, 0);
 }
 
 static ssize_t cdev_aio_write(struct kiocb *iocb, const struct iovec *io,

@@ -157,7 +157,7 @@ static void tx_work_handler(struct work_struct *work)
 	struct xdma_dev *xdev;
 
 	priv = container_of(work, struct opti_private, tx_work); 
-	// skb_sgdma_write(priv->netdev);
+	skb_sgdma_write(priv->netdev);
 
     printk("work handler function.\n");
 
@@ -220,36 +220,12 @@ static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	skb_copy_from_linear_data(skb, info->buf, skb->len);
 	dev_kfree_skb_any(skb);
 
-    
-    // 打印出数据帧
-    //printk("net1=%p:\n",dev);
-    // for(i=0;i<skb->len;i++){
-    //     printk(KERN_CONT "%02x ",skb->data[i]);
-    // }
-    // printk("\n");
-	
     // 统计已发送的数据包
     dev->stats.tx_packets++;
     // 统计已发送的字节
     dev->stats.tx_bytes+=info->len;
 
-	schedule_work(&priv->tx_work);
-
-	// if(dev->stats.tx_packets>5 && info->last_len )
-	// 	schedule_work(&priv->rx_work);
-
-	// char sbuf[skb->len+1];
-	// for(i=0;i<skb->len;i++){
-	// 	sbuf[i]=skb->data[i];
-	// }
-	// sbuf[skb->len]='\0';
-	//if(dev->stats.tx_packets==1)
-    //char_sgdma_read_write_net(dev, skb);
-	
-	
-    
-    // 告诉内核可以传入更多帧了
-    //netif_wake_queue(dev);
+	//schedule_work(&priv->tx_work);
 	printk("end of xmit\n");
 	return 0;
 }
@@ -302,7 +278,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	strlcpy(netdev->name, "opti_net", sizeof(netdev->name));
 
-	memcpy(netdev->dev_addr,"\x01\x02\x03\x04\x05\x06",6);
+	memcpy(netdev->dev_addr,"\xca\x02\x03\x04\x05\x06",6);
 
 	priv = netdev_priv(netdev);
 	memset(priv, 0, sizeof(struct opti_private));
@@ -358,13 +334,13 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!xpdev->h2c_channel_max && !xpdev->c2h_channel_max)
 		pr_warn("NO engine found!\n");
 
-	if (xpdev->user_max) {
-		u32 mask = (1 << (xpdev->user_max + 1)) - 1;
+	// if (xpdev->user_max) {
+	// 	u32 mask = (1 << (xpdev->user_max + 1)) - 1;
 
-		rv = xdma_user_isr_enable(hndl, mask);
-		if (rv)
-			goto err_out;
-	}
+	// 	rv = xdma_user_isr_enable(hndl, mask);
+	// 	if (rv)
+	// 		goto err_out;
+	// }
 
 	if (hndl != xdev) {
 		pr_err("xdev handle mismatch\n");
@@ -384,6 +360,14 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_out;
 
 	dev_set_drvdata(&pdev->dev, xpdev);
+
+	if (xpdev->user_max) {
+		u32 mask = (1 << (xpdev->user_max + 1)) - 1;
+
+		rv = xdma_user_isr_enable(hndl, mask);
+		if (rv)
+			goto err_out;
+	}
 
 	return 0;
 
