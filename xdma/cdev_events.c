@@ -27,7 +27,6 @@
 static ssize_t char_events_read(struct file *file, char __user *buf,
 		size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_events_read\n");
 	int rv;
 	struct xdma_user_irq *user_irq;
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;

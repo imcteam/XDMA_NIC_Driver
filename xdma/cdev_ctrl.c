@@ -38,7 +38,6 @@
 static ssize_t char_ctrl_read(struct file *fp, char __user *buf, size_t count,
 		loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_ctrl_read\n");
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)fp->private_data;
 	struct xdma_dev *xdev;
 	void __iomem *reg;
@@ -70,7 +69,6 @@ static ssize_t char_ctrl_read(struct file *fp, char __user *buf, size_t count,
 static ssize_t char_ctrl_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_ctrl_write\n");
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
 	struct xdma_dev *xdev;
 	void __iomem *reg;

@@ -154,12 +154,11 @@ static struct xdma_pci_dev *xpdev_alloc(struct pci_dev *pdev)
 static void tx_work_handler(struct work_struct *work)  
 {
 	struct opti_private *priv;
-	struct xdma_dev *xdev;
 
 	priv = container_of(work, struct opti_private, tx_work); 
 	skb_sgdma_write(priv->netdev);
 
-    printk("work handler function.\n");
+    // printk("work handler function.\n");
 
 	// printk("net2=%p:\n",priv->netdev);
 	// printk("send, length=%lld:\n\n",info->len);
@@ -193,7 +192,6 @@ static void rx_work_handler(struct work_struct *work)
 
 static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
-	int i;
 	struct opti_private *priv;
 	struct desc_info *info;
 
@@ -225,8 +223,8 @@ static int  opti_xmit_frame(struct sk_buff *skb, struct net_device *dev)
     // 统计已发送的字节
     dev->stats.tx_bytes+=info->len;
 
-	//schedule_work(&priv->tx_work);
-	printk("end of xmit\n");
+	schedule_work(&priv->tx_work);
+	// printk("end of xmit\n");
 	return 0;
 }
 

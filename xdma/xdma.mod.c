@@ -42,6 +42,7 @@ __used __section(__versions) = {
 	{ 0xf38a3177, "pci_disable_device" },
 	{ 0x803547ee, "pci_disable_msix" },
 	{ 0xc1c45cf3, "set_page_dirty_lock" },
+	{ 0xdf566a59, "__x86_indirect_thunk_r9" },
 	{ 0x56470118, "__warn_printk" },
 	{ 0x837b7b09, "__dynamic_pr_debug" },
 	{ 0xf6cb2bfb, "device_destroy" },
@@ -104,6 +105,7 @@ __used __section(__versions) = {
 	{ 0x7cd8d75e, "page_offset_base" },
 	{ 0x87d16318, "dma_direct_unmap_page" },
 	{ 0xd7db3ff3, "kmem_cache_alloc" },
+	{ 0xb601be4c, "__x86_indirect_thunk_rdx" },
 	{ 0x618911fc, "numa_node" },
 	{ 0xb2fd5ceb, "__put_user_4" },
 	{ 0xb665f56d, "__cachemode2pte_tbl" },
@@ -227,4 +229,4 @@ MODULE_ALIAS("pci:v000010EEd00002808sv*sd*bc*sc*i*");
 MODULE_ALIAS("pci:v00001D0Fd0000F000sv*sd*bc*sc*i*");
 MODULE_ALIAS("pci:v00001D0Fd0000F001sv*sd*bc*sc*i*");
 
-MODULE_INFO(srcversion, "254CEC0476399970B1370AA");
+MODULE_INFO(srcversion, "2CE94AEDB4231503E2EDA6E");

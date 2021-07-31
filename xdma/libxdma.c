@@ -86,6 +86,9 @@ MODULE_PARM_DESC(desc_blen_max,
 			wait_event_interruptible
 #endif
 
+static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer);
+static void xdma_request_free(struct xdma_request_cb *req);
+
 
 /*
  * xdma device management
@@ -1234,32 +1237,35 @@ done:
 //lcf work_rx
 static void engine_rx_work(struct work_struct *work)
 {
-	printk(KERN_INFO"engine_rx_work\n");
+	// printk(KERN_INFO"engine_rx_work\n");
 
 	struct xdma_engine *engine;
-	engine = container_of(work, struct xdma_engine, work_rx);
+	
 
-	struct xdma_dev *xdev = engine->xdev;
+	struct xdma_dev *xdev;
 	struct pci_dev *pdev;
 	struct xdma_pci_dev *xpdev;
 	struct net_device *netdev;
 	struct opti_private *priv;
 	struct desc_info *info;
+	int i;
 
+	engine = container_of(work, struct xdma_engine, work_rx);
+	xdev = engine->xdev;
 	pdev = xdev->pdev;
 	xpdev = dev_get_drvdata(&pdev->dev);
 	netdev = xpdev->netdev;
 	priv = netdev_priv(netdev);
 	info = priv->rx_desc_info;
-	printk("info->len:%d\n", info->len);
+	// printk("info->len:%d\n", info->len);
 	skb_sgdma_read(netdev);
 
 	iowrite32(0, bar0 + 0x08);
-	printk("user_bar 0x10:%d\n",ioread32(bar0 + 0x10));
+	i = ioread32(bar0 + 0x08);
+	if(i != 0) printk("error\n\n\n\n");
+	printk(KERN_INFO"user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
 
-	printk("end of engine_rx_work\n");
-	
-	
+	printk(KERN_INFO"end of engine_rx_work\n");	
 }
 
 /* engine_service_work */
@@ -1478,8 +1484,8 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	bar0 = xdev->bar[0];
 
 	if (!ch_irq && user_irq) {
-		printk("\n\n\n");
-		printk("user irq begin:");
+		printk(KERN_INFO"\n\n");
+		printk(KERN_INFO"user irq begin:");
 		// printk("user_bar 0x00:%d\n",ioread32(xdev->bar[0] + 0x00));
 		// printk("user_bar 0x04:%d\n",ioread32(xdev->bar[0] + 0x04));
 		// printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
@@ -4670,7 +4676,7 @@ int skb_sgdma_write(struct net_device *netdev)
 				msecs_to_jiffies(100));
 	
 	spin_lock_irqsave(&engine->lock, flags);
-	printk("skb_sgdma_write wake up\n");
+	// printk("skb_sgdma_write wake up\n");
 
 	switch (xfer->state) {
 	case TRANSFER_STATE_COMPLETED:
@@ -4797,18 +4803,19 @@ int skb_sgdma_read(struct net_device *netdev)
 				(xfer->state != TRANSFER_STATE_SUBMITTED),
 				msecs_to_jiffies(500));
 	
-	printk("skb_sgdma_read wake up\n");
+	// printk("skb_sgdma_read wake up\n");
 	
 	spin_lock_irqsave(&engine->lock, flags);
 
 	switch (xfer->state) {
 	case TRANSFER_STATE_COMPLETED:
+		printk(KERN_INFO"skb read succeed\n");
 		spin_unlock_irqrestore(&engine->lock, flags);
 		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
 				xfer, xfer->len, req->ep_addr - xfer->len);
 		struct xdma_result *result = xfer->res_virt;
 		printk("expected receive length:%d\n", info->len);
-		printk("receive count:%d\n", xfer->desc_cmpl);
+		// printk("receive count:%d\n", xfer->desc_cmpl);
 		printk("truely receive length:%d\n",result[0].length);
 		unsigned char *revmeg = (unsigned char *)info->buf;
 		info->len = result[0].length;

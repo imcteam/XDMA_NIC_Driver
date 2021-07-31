@@ -666,8 +666,6 @@ static inline void xdma_device_flag_clear(struct xdma_dev *xdev, unsigned int f)
 	spin_unlock_irqrestore(&xdev->lock, flags);
 }
 
-static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer);
-static void xdma_request_free(struct xdma_request_cb *req);
 int skb_sgdma_write(struct net_device *netdev);
 int skb_sgdma_read(struct net_device *netdev);
 

@@ -280,7 +280,6 @@ static int char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb *cb, bool write)
 	unsigned int pages_nr = (((unsigned long)buf + len + PAGE_SIZE - 1) -
 				 ((unsigned long)buf & PAGE_MASK))
 				>> PAGE_SHIFT;
-	printk(KERN_INFO"lcf_log:pages_nr:%d\n",pages_nr);
 	int i;
 	int rv;
 
@@ -379,10 +378,6 @@ static ssize_t  char_sgdma_read_write(struct file *file, const char __user *buf,
 			write, engine->dir);
 		return -EINVAL;
 	}
-
-	printk(KERN_INFO"lcf_log:char_sgdma_read_write\n");
-	if(write)
-		printk(KERN_INFO"lcf_log:tans_buffer:%s channel:%d buf:%p\n",buf,engine->channel,buf);
 
 	rv = check_transfer_align(engine, buf, count, *pos, 1);
 	if (rv) {

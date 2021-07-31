@@ -65,7 +65,6 @@ static int copy_desc_data(struct xdma_transfer *transfer, char __user *buf,
 static ssize_t char_bypass_read(struct file *file, char __user *buf,
 		size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_bypass_read\n");
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
@@ -118,7 +117,6 @@ static ssize_t char_bypass_read(struct file *file, char __user *buf,
 static ssize_t char_bypass_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos)
 {
-	printk(KERN_INFO"lcf_log:char_bypass_write\n");
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
 	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
