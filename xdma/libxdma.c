@@ -803,7 +803,6 @@ static struct xdma_transfer *engine_transfer_completion(
 		struct xdma_engine *engine,
 		struct xdma_transfer *transfer)
 {
-	// printk(KERN_INFO"lcf_log:engine_transfer_completion\n");
 	if (!engine) {
 		pr_err("dma engine NULL\n");
 		return NULL;
@@ -1019,7 +1018,6 @@ transfer_del:
 	 * Complete transfer - sets transfer to NULL if an asynchronous
 	 * transfer has completed
 	 */
-	// printk(KERN_INFO"lcf_log:transfer = engine_transfer_completion\n");
 	transfer = engine_transfer_completion(engine, transfer);
 
 	return transfer;
@@ -1034,7 +1032,6 @@ static int engine_service_perf(struct xdma_engine *engine, u32 desc_completed)
 
 	/* performance measurement is running? */
 	if (engine->xdma_perf) {
-		// printk(KERN_INFO"lcf_log:performance measurement is running\n");
 		/* a descriptor was completed? */
 		if (engine->status & XDMA_STAT_DESC_COMPLETED) {
 			engine->xdma_perf->iterations = desc_completed;
@@ -1102,13 +1099,6 @@ static int engine_service_resume(struct xdma_engine *engine)
  */
 static int engine_service(struct xdma_engine *engine, int desc_writeback)
 {
-	// printk(KERN_INFO"lcf_log:engine_service\n");
-	// struct xdma_dev *xdev = engine->xdev;
-	// struct net_device *netdev;
-	// struct pci_dev *pdev;
-	// struct xdma_pci_dev *xpdev;
-	// struct xdma_request_cb *req;
-	// struct sk_buff *skb;
 	struct xdma_transfer *transfer = NULL;
 	u32 desc_count = desc_writeback & WB_COUNT_MASK;
 	u32 err_flag = desc_writeback & WB_ERR_MASK;
@@ -1210,25 +1200,6 @@ static int engine_service(struct xdma_engine *engine, int desc_writeback)
 			pr_err("Failed to resume engine\n");
 	}
 
-	// if(engine->dir == DMA_TO_DEVICE){
-	// 	printk("engine->dir == DMA_TO_DEVICE\n\n\n");
-	// 	engine->desc_used -= transfer->desc_num;
-		
-	// 	req = container_of(transfer, struct xdma_request_cb, tfer[1]);
-	// 	pci_unmap_single(xdev->pdev, req->sdesc[0].addr, req->total_len,
-	// 					PCI_DMA_TODEVICE);
-	// 	skb = req->skb;
-	// 	pdev = xdev->pdev;
-	// 	xpdev = dev_get_drvdata(&pdev->dev);
-	// 	netdev = xpdev->netdev;
-	// 	netif_wake_queue(netdev);
-	// 	transfer_destroy(xdev, transfer);
-	// 	dev_kfree_skb(skb);
-	// 	//printk("req2:%p\n\n\n",req);
-	// 	if (req)
-	// 		xdma_request_free(req);
-	// }
-
 done:
 	/* If polling detected an error, signal to the caller */
 	return err_flag ? -1 : 0;
@@ -1278,7 +1249,6 @@ static void engine_rx_work(struct work_struct *work)
 /* engine_service_work */
 static void engine_service_work(struct work_struct *work)
 {
-	// printk(KERN_INFO"lcf_log:engine_service_work\n");
 	struct xdma_engine *engine;
 	unsigned long flags;
 	int rv;
@@ -1441,7 +1411,6 @@ static irqreturn_t user_irq_service(int irq, struct xdma_user_irq *user_irq)
  */
 static irqreturn_t xdma_isr(int irq, void *dev_id)
 {
-	//printk(KERN_INFO"lcf_log:xdma_isr\n");
 	u32 ch_irq;
 	u32 user_irq;
 	u32 mask;
@@ -1494,6 +1463,7 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	bar0 = xdev->bar[0];
 
 	if (priv->token && user_irq) {
+		struct xdma_engine *engine;
 		priv->token = false;
 		printk(KERN_INFO"\n\n");
 		printk(KERN_INFO"user irq begin:");
@@ -1511,7 +1481,7 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 		// printk("info->len: %d\n",info->len);
 
 
-		struct xdma_engine *engine = &xdev->engine_h2c[0];
+		engine = &xdev->engine_h2c[0];
 		schedule_work(&engine->work_rx);
 		// int user = 0;
 		// u32 mask = 1;
@@ -2289,7 +2259,6 @@ static void irq_teardown(struct xdma_dev *xdev)
 
 static int irq_setup(struct xdma_dev *xdev, struct pci_dev *pdev)
 {
-	//printk(KERN_INFO"lcf_log:irq_setup\n");
 	pci_keep_intx_enabled(pdev);
 
 	if (xdev->msix_enabled) {
@@ -3221,7 +3190,6 @@ static struct xdma_request_cb *xdma_init_request(struct sg_table *sgt,
 	dbg_tfr("ep 0x%llx, desc %u+%u.\n", ep_addr, max, extra);
 
 	max += extra;
-	// printk(KERN_INFO"lcf_log:desc_blen_max:%d\n",desc_blen_max);
 	req = xdma_request_alloc(max);
 	if (!req)
 		return NULL;
@@ -3289,7 +3257,6 @@ ssize_t xdma_xfer_submit_net(void *dev_hndl,void *net_req)
 			goto unmap_sgl;
 	}
 
-	// printk(KERN_INFO"lcf_log:SEND OK\n");
 	if (engine->cmplthp){
 		xdma_kthread_wakeup(engine->cmplthp);
 	}
@@ -4616,6 +4583,7 @@ int skb_sgdma_write(struct net_device *netdev)
 	struct desc_info *info;
 
 	int rv;
+	unsigned long flags;
 
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
@@ -4627,7 +4595,6 @@ int skb_sgdma_write(struct net_device *netdev)
 	info = priv->tx_desc_info;
 	xdev = priv->xdev;
 	engine = &xdev->engine_h2c[0];
-	unsigned long flags;
 
 	if (!engine) {
 		//pr_err("dma engine NULL\n");
@@ -4745,6 +4712,12 @@ int skb_sgdma_read(struct net_device *netdev)
 	struct desc_info *info;
 
 	int rv;
+	unsigned long flags;
+
+	struct xdma_result *result;
+	unsigned char *revmeg;
+	unsigned int len_rev;
+	struct sk_buff* skb;
 
 	struct xdma_dev *xdev;
 	struct xdma_engine *engine;
@@ -4756,7 +4729,6 @@ int skb_sgdma_read(struct net_device *netdev)
 	info = priv->rx_desc_info;
 	xdev = priv->xdev;
 	engine = &xdev->engine_c2h[0];
-	unsigned long flags;
 
 	if (!engine) {
 		//pr_err("dma engine NULL\n");
@@ -4825,18 +4797,18 @@ int skb_sgdma_read(struct net_device *netdev)
 		spin_unlock_irqrestore(&engine->lock, flags);
 		dbg_tfr("transfer %p, %u, ep 0x%llx compl.\n",
 				xfer, xfer->len, req->ep_addr - xfer->len);
-		struct xdma_result *result = xfer->res_virt;
+		result = xfer->res_virt;
 		printk("expected receive length:%d\n", info->len);
 		// printk("receive count:%d\n", xfer->desc_cmpl);
 		printk("truely receive length:%d\n",result[0].length);
-		unsigned char *revmeg = (unsigned char *)info->buf;
+		revmeg = (unsigned char *)info->buf;
 		info->len = result[0].length;
-		unsigned int len_rev = result[0].length;
+		len_rev = result[0].length;
 		while(len_rev){
 			printk(KERN_CONT "%02x  ",revmeg[info->len-len_rev]);
 			len_rev--;
 		}
-		struct sk_buff* skb = dev_alloc_skb(info->len + 2);
+		skb = dev_alloc_skb(info->len + 2);
 		skb_reserve(skb, 2);
 		memcpy(skb_put(skb, info->len), info->buf, info->len);
 		skb->dev = netdev;

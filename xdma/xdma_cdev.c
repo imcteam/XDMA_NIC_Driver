@@ -162,7 +162,6 @@ int xcdev_check(const char *fname, struct xdma_cdev *xcdev, bool check_engine)
 
 int char_open(struct inode *inode, struct file *file)
 {
-	printk(KERN_INFO"lcf_log:char_open\n");
 	struct xdma_cdev *xcdev;
 
 	/* pointer to containing structure of the character device inode */

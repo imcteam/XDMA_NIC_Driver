@@ -234,7 +234,8 @@ static const struct net_device_ops opti_netdev_ops = {
 
 static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	/*net_device definition
+	/*
+	 *net_device definition
 	 *created by lcf
 	 */
 	struct net_device *netdev;
