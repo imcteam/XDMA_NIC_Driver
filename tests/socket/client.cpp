@@ -41,7 +41,7 @@ int main()
   char send_buf[20] = "hey, who are you?";
   char recv_buf[20];
 
-  for(int i = 0; i < 10000; i++){
+  for(int i = 0; i < 100000; i++){
     printf("client send: %s\n", send_buf);
 
     send_num = sendto(sock_fd, send_buf, strlen(send_buf), 0, (struct sockaddr *)&addr_serv, len);
@@ -62,7 +62,7 @@ int main()
 
     recv_buf[recv_num] = '\0';
     printf("client receive %d bytes: %s\n", recv_num, recv_buf);
-    usleep(1000);
+    usleep(100);
   }
   
 

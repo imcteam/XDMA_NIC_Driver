@@ -284,6 +284,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->xpdev = xpdev;
 	priv->netdev = netdev;
 	priv->engine = xpdev->sgdma_h2c_cdev[0].engine;
+	priv->token = true;
 
 	memset(priv->tx_desc_info, 0, sizeof(priv->tx_desc_info));
 	memset(priv->rx_desc_info, 0, sizeof(priv->rx_desc_info));

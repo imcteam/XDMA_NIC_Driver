@@ -140,5 +140,6 @@ struct opti_private {
 
 	struct desc_info tx_desc_info[1];
 	struct desc_info rx_desc_info[1];
+	bool token;
 };
 #endif /* ifndef __XDMA_MODULE_H__ */

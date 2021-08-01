@@ -1248,7 +1248,9 @@ static void engine_rx_work(struct work_struct *work)
 	struct net_device *netdev;
 	struct opti_private *priv;
 	struct desc_info *info;
+	struct interrupt_regs *irq_regs;
 	int i;
+	u32 user_irq;
 
 	engine = container_of(work, struct xdma_engine, work_rx);
 	xdev = engine->xdev;
@@ -1259,10 +1261,15 @@ static void engine_rx_work(struct work_struct *work)
 	info = priv->rx_desc_info;
 	// printk("info->len:%d\n", info->len);
 	skb_sgdma_read(netdev);
-
+	priv->token = true;
 	iowrite32(0, bar0 + 0x08);
 	i = ioread32(bar0 + 0x08);
 	if(i != 0) printk("error\n\n\n\n");
+	irq_regs = (struct interrupt_regs *)(xdev->bar[xdev->config_bar_idx] +
+					     XDMA_OFS_INT_CTRL);
+	user_irq = read_register(&irq_regs->user_int_request);
+	printk("user_irq = 0x%08x\n", user_irq);
+	
 	printk(KERN_INFO"user_bar 0x08:%d\n",ioread32(bar0 + 0x08));
 
 	printk(KERN_INFO"end of engine_rx_work\n");	
@@ -1481,11 +1488,16 @@ static irqreturn_t xdma_isr(int irq, void *dev_id)
 	user_irq = read_register(&irq_regs->user_int_request);
 	dbg_irq("user_irq = 0x%08x\n", user_irq);
 
+	printk("user_irq = 0x%08x\n", user_irq);
+	printk("ch_irq = 0x%08x\n", ch_irq);
+
 	bar0 = xdev->bar[0];
 
-	if (!ch_irq && user_irq) {
+	if (priv->token && user_irq) {
+		priv->token = false;
 		printk(KERN_INFO"\n\n");
 		printk(KERN_INFO"user irq begin:");
+		printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
 		// printk("user_bar 0x00:%d\n",ioread32(xdev->bar[0] + 0x00));
 		// printk("user_bar 0x04:%d\n",ioread32(xdev->bar[0] + 0x04));
 		// printk("user_bar 0x08:%d\n",ioread32(xdev->bar[0] + 0x08));
